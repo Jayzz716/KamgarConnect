@@ -305,7 +305,7 @@ export default async function CustomerDashboard() {
                                                                     <p className="text-xs text-slate-400">{assignedWorkerApp.profiles.profession}</p>
                                                                 </div>
                                                             </div>
-                                                            {(job as any).is_rated ? (
+                                                            {(job as { is_rated?: boolean }).is_rated ? (
                                                                 <div className="flex items-center gap-1 text-yellow-400 text-sm font-bold">
                                                                     <Star className="w-4 h-4 fill-current" /> Already Rated!
                                                                 </div>

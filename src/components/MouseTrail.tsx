@@ -32,7 +32,7 @@ export function MouseTrail() {
             }
         }
 
-        let mouse = { x: -1000, y: -1000 }
+        const mouse = { x: -1000, y: -1000 }
         const radius = 100 // Area of effect
 
         const handleMouseMove = (e: MouseEvent) => {
