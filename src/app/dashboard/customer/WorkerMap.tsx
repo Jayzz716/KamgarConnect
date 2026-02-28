@@ -7,7 +7,7 @@ import L from 'leaflet'
 import { Star } from 'lucide-react'
 
 // Fix default leaflet icon in Next.js (common issue)
-// @ts-expect-error
+// @ts-expect-error: Leaflet internal property not in types
 delete L.Icon.Default.prototype._getIconUrl
 L.Icon.Default.mergeOptions({
     iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
