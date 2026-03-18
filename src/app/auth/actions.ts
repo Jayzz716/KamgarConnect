@@ -47,6 +47,42 @@ export async function register(formData: FormData) {
     const profession = formData.get('profession') as string
     const experience_years = formData.get('experience_years') as string
     const aadhar_number = formData.get('aadhar_number') as string
+    const blood_group = formData.get('blood_group') as string
+    const certificates_file = formData.get('certificates') as File | null
+    const profile_picture = formData.get('profile_picture') as File | null
+
+    let profile_picture_url = null
+    let certificates_url = null
+
+    // Helper function for uploading to Supabase Storage
+    const uploadFile = async (file: File, prefix: string) => {
+        const fileExt = file.name.split('.').pop()
+        const fileName = `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
+
+        const { error } = await supabase.storage
+            .from('avatars')
+            .upload(fileName, file)
+
+        if (error) throw error
+
+        const { data: { publicUrl } } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(fileName)
+
+        return publicUrl
+    }
+
+    try {
+        if (profile_picture && profile_picture.size > 0) {
+            profile_picture_url = await uploadFile(profile_picture, 'avatar')
+        }
+        if (certificates_file && certificates_file.size > 0) {
+            certificates_url = await uploadFile(certificates_file, 'cert')
+        }
+    } catch (uploadError: unknown) {
+        const message = uploadError instanceof Error ? uploadError.message : 'Unknown error'
+        return redirect(`/register?error=Error uploading files: ${message}`)
+    }
 
     if (!role) {
         return redirect('/register?error=Please select a role')
@@ -64,7 +100,10 @@ export async function register(formData: FormData) {
                 location,
                 profession,
                 experience_years,
-                aadhar_number
+                aadhar_number,
+                blood_group,
+                profile_picture_url,
+                certificates: certificates_url
             }
         }
     })

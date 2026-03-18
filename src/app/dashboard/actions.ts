@@ -134,10 +134,61 @@ export async function updateProfile(formData: FormData) {
     const full_name = formData.get('full_name') as string
     const phone = formData.get('phone') as string
     const location = formData.get('location') as string
+    const blood_group = formData.get('blood_group') as string
+
+    const profession = formData.get('profession') as string
+    const experience_years = formData.get('experience_years') ? Number(formData.get('experience_years')) : null
+
+    // File uploads
+    const profile_picture = formData.get('profile_picture') as File | null
+    const certificates_file = formData.get('certificates') as File | null
+
+    let profile_picture_url = null
+    let certificates_url = null
+
+    // Helper function for uploading to Supabase Storage
+    const uploadFile = async (file: File | null, prefix: string) => {
+        if (!file || file.size === 0) return null
+        const fileExt = file.name.split('.').pop()
+        const fileName = `${prefix}-${user.id}-${Date.now()}.${fileExt}`
+
+        const { error } = await supabase.storage
+            .from('avatars')
+            .upload(fileName, file)
+
+        if (error) throw error
+
+        const { data: { publicUrl } } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(fileName)
+
+        return publicUrl
+    }
+
+    try {
+        profile_picture_url = await uploadFile(profile_picture, 'avatar')
+        certificates_url = await uploadFile(certificates_file, 'cert')
+    } catch (err: any) {
+        console.error('File upload error:', err)
+        throw new Error('Failed to upload files: ' + err.message)
+    }
+
+    const updateData: any = {
+        full_name,
+        phone,
+        location,
+        blood_group,
+        profession,
+        experience_years,
+        updated_at: new Date().toISOString()
+    }
+
+    if (profile_picture_url) updateData.profile_picture_url = profile_picture_url
+    if (certificates_url) updateData.certificates = certificates_url
 
     const { error } = await supabase
         .from('profiles')
-        .update({ full_name, phone, location })
+        .update(updateData)
         .eq('id', user.id)
 
     if (error) throw new Error('Failed to update profile: ' + error.message)

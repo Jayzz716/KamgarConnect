@@ -2,7 +2,7 @@
 
 import { register } from '@/app/auth/actions'
 import Link from 'next/link'
-import { ArrowRight, Mail, Lock, User, Briefcase, MapPin, Phone, Hash, ShieldCheck, UserCircle, Home } from 'lucide-react'
+import { ArrowRight, Mail, Lock, User, Briefcase, MapPin, Phone, Hash, ShieldCheck, UserCircle, Home, Activity, Image as ImageIcon, Award } from 'lucide-react'
 import { MouseTrail } from '@/components/MouseTrail'
 import { useState } from 'react'
 
@@ -33,7 +33,7 @@ export default function RegisterPage({
                     <p className="text-slate-500 text-sm">Create your new account to get started</p>
                 </div>
 
-                <form className="space-y-6">
+                <form className="space-y-6" encType="multipart/form-data">
                     {searchParams?.error && (
                         <div className="bg-red-50 border border-red-200 text-red-600 text-sm p-4 rounded-xl text-center font-medium">
                             {searchParams.error === 'email rate limit exceeded'
@@ -173,6 +173,50 @@ export default function RegisterPage({
                                         title="Please enter a valid 12-digit Aadhar number"
                                         className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-12 pr-4 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                                     />
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="relative">
+                                        <Activity className="absolute left-4 top-3.5 h-5 w-5 text-slate-400" />
+                                        <select
+                                            name="blood_group"
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-12 pr-4 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none"
+                                        >
+                                            <option value="">Blood Group (Optional)</option>
+                                            <option value="A+">A+</option>
+                                            <option value="A-">A-</option>
+                                            <option value="B+">B+</option>
+                                            <option value="B-">B-</option>
+                                            <option value="AB+">AB+</option>
+                                            <option value="AB-">AB-</option>
+                                            <option value="O+">O+</option>
+                                            <option value="O-">O-</option>
+                                        </select>
+                                    </div>
+                                    <div className="relative">
+                                        <Award className="absolute left-4 top-3.5 h-5 w-5 text-slate-400" />
+                                        <div className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-12 pr-4 text-slate-900 transition-all flex items-center">
+                                            <span className="text-sm text-slate-400 mr-2 shrink-0">Certificates:</span>
+                                            <input
+                                                name="certificates"
+                                                type="file"
+                                                accept="image/*,.pdf"
+                                                className="w-full text-sm text-slate-500 file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="relative">
+                                    <ImageIcon className="absolute left-4 top-3.5 h-5 w-5 text-slate-400" />
+                                    <div className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-12 pr-4 text-slate-900 transition-all flex items-center">
+                                        <span className="text-sm text-slate-400 mr-2 shrink-0">Profile Picture:</span>
+                                        <input
+                                            name="profile_picture"
+                                            type="file"
+                                            accept="image/*"
+                                            className="w-full text-sm text-slate-500 file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         )}
