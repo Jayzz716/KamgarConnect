@@ -168,12 +168,12 @@ export async function updateProfile(formData: FormData) {
     try {
         profile_picture_url = await uploadFile(profile_picture, 'avatar')
         certificates_url = await uploadFile(certificates_file, 'cert')
-    } catch (err: any) {
+    } catch (err: unknown) {
         console.error('File upload error:', err)
-        throw new Error('Failed to upload files: ' + err.message)
+        throw new Error('Failed to upload files: ' + (err instanceof Error ? err.message : String(err)))
     }
 
-    const updateData: any = {
+    const updateData: Record<string, string | number | null> = {
         full_name,
         phone,
         location,

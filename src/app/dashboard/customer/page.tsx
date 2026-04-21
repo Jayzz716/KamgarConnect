@@ -1,14 +1,10 @@
 import { Briefcase, MapPin, Plus, Zap, AlertCircle, CheckCircle2, UserCircle, Star, Pencil, Phone, User, PartyPopper, Activity, Award } from 'lucide-react'
 import { createClient } from '@/utils/supabase/server'
 import { postJob, acceptWorker, updateProfile, markJobDone } from '@/app/dashboard/actions'
-import dynamic from 'next/dynamic'
+
 import StarRating from './StarRating'
 import Link from 'next/link'
 
-const WorkerMap = dynamic(() => import('./WorkerMap'), {
-    ssr: false,
-    loading: () => <div className="h-[400px] w-full rounded-2xl bg-[#0F1115] animate-pulse flex items-center justify-center text-slate-500 border border-white/5">Loading map...</div>
-})
 
 function parseDescription(desc: string) {
     try {
@@ -56,12 +52,7 @@ export default async function CustomerDashboard({
         .eq('customer_id', user?.id)
         .order('created_at', { ascending: false })
 
-    // Fetch nearby workers
-    const { data: workers } = await supabase
-        .from('profiles')
-        .select('id, full_name, profession, location, rating_sum, rating_count')
-        .eq('role', 'worker')
-        .limit(30)
+
 
     // Fetch this customer's own profile
     const { data: profile } = await supabase

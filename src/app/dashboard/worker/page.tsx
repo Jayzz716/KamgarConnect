@@ -36,7 +36,9 @@ export default async function WorkerDashboard({
     // Shared Tab Queries
 
     // --- TAB: CURRENT (Available & Accepted Jobs) ---
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let openJobs: any[] = []
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let applications: any[] = []
     let appliedJobIds = new Set<string>()
     let applicationStatusMap = new Map<string, string>()
@@ -74,6 +76,7 @@ export default async function WorkerDashboard({
     }
 
     // --- TAB: HISTORY & INCOME ---
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let completedApplications: any[] = []
     let totalIncome = 0
 
