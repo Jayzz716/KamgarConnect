@@ -38,3 +38,10 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 >>>>>>> c043c62 (Initial commit from Create Next App)
+
+
+
+
+so all working well there are improvents that is need ro be adressed
+1:after completing the job like customers click on job done on workers side there should be a notification and that job should autmatically goes to history of worker
+2.after completing the job in workers side the total amount he gain should update the monthly revenue option

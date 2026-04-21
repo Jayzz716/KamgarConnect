@@ -1,4 +1,4 @@
-import { Briefcase, MapPin, Star, IndianRupee, CheckCircle2, History, Banknote, User, Pencil, Phone } from 'lucide-react'
+import { Briefcase, MapPin, Star, IndianRupee, CheckCircle2, History, Banknote, User, Pencil, Phone, Bell, TrendingUp } from 'lucide-react'
 import { createClient } from '@/utils/supabase/server'
 import { applyForJob, updateProfile } from '@/app/dashboard/actions'
 import Link from 'next/link'
@@ -26,11 +26,12 @@ export default async function WorkerDashboard({
     // Fetch the worker's profile to get their profession and details
     const { data: profile } = await supabase
         .from('profiles')
-        .select('profession, experience_years, full_name, phone, location, is_active, blood_group, profile_picture_url, certificates')
+        .select('profession, experience_years, full_name, phone, location, is_active, blood_group, profile_picture_url, certificates, monthly_revenue')
         .eq('id', user.id)
         .single()
 
     const workerProfession = profile?.profession || ''
+    const monthlyRevenue = profile?.monthly_revenue || 0
 
     // Shared Tab Queries
 
@@ -61,8 +62,11 @@ export default async function WorkerDashboard({
 
         applications = fetchApps || []
 
-        // Include jobs the worker has been accepted for in the "Current" view
-        const acceptedJobs = applications.filter(app => app.status === 'accepted').map(app => app.jobs)
+        // Include jobs the worker has been accepted for in the "Current" view (exclude completed ones)
+        const acceptedJobs = applications
+            .filter(app => app.status === 'accepted' && app.jobs?.status !== 'completed')
+            .map(app => app.jobs)
+            
         openJobs = [...acceptedJobs, ...openJobs]
 
         appliedJobIds = new Set(applications.map(app => app.job_id))
@@ -86,6 +90,7 @@ export default async function WorkerDashboard({
                     location,
                     budget,
                     status,
+                    updated_at,
                     profiles ( full_name )
                 )
             `)
@@ -99,6 +104,28 @@ export default async function WorkerDashboard({
             totalIncome = completedApplications.reduce((sum, app) => sum + (app.jobs.budget || 0), 0)
         }
     }
+
+    // --- NOTIFICATION: Recently completed jobs (last 24 hours) ---
+    // This powers the notification banner on the Current tab
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    const { data: recentlyCompleted } = await supabase
+        .from('job_applications')
+        .select(`
+            id,
+            jobs!inner (
+                id,
+                title,
+                budget,
+                status,
+                updated_at
+            )
+        `)
+        .eq('worker_id', user.id)
+        .eq('status', 'accepted')
+        .eq('jobs.status', 'completed')
+        .gte('jobs.updated_at', oneDayAgo)
+
+    const newlyCompletedJobs = recentlyCompleted || []
 
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-1000 max-w-7xl mx-auto flex flex-col md:flex-row gap-8 text-slate-200">
@@ -139,6 +166,34 @@ export default async function WorkerDashboard({
                 {/* --- CURRENT JOBS TAB --- */}
                 {currentTab === 'current' && (
                     <>
+                        {/* Notification Banner for Newly Completed Jobs */}
+                        {newlyCompletedJobs.length > 0 && (
+                            <div className="mb-6 bg-green-500/10 border border-green-500/30 rounded-2xl p-4 flex items-start gap-4 animate-in fade-in slide-in-from-top-2 duration-500">
+                                <div className="w-10 h-10 bg-green-500/20 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+                                    <Bell className="w-5 h-5 text-green-400" />
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-green-400 font-bold text-sm mb-1">
+                                        🎉 {newlyCompletedJobs.length === 1 ? '1 job was' : `${newlyCompletedJobs.length} jobs were`} marked as done by the customer!
+                                    </p>
+                                    <div className="space-y-1">
+                                        {newlyCompletedJobs.map((app: any) => (
+                                            <p key={app.id} className="text-xs text-slate-300">
+                                                <span className="font-semibold text-white">{app.jobs.title}</span>
+                                                {app.jobs.budget && (
+                                                    <span className="text-green-400 font-bold ml-2">+₹{app.jobs.budget}</span>
+                                                )}
+                                                <span className="text-slate-500 ml-2">— added to your history & revenue</span>
+                                            </p>
+                                        ))}
+                                    </div>
+                                </div>
+                                <a href="/dashboard/worker?tab=history" className="shrink-0 text-xs font-bold text-green-400 hover:text-green-300 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 px-3 py-1.5 rounded-lg transition-all">
+                                    View History →
+                                </a>
+                            </div>
+                        )}
+
                         <div className="mb-8">
                             <h1 className="text-3xl font-bold text-white mb-2">Available & Active Jobs</h1>
                             <p className="text-slate-400">
@@ -291,22 +346,41 @@ export default async function WorkerDashboard({
                             <p className="text-slate-400">Summary of your earnings on KamgarConnect.</p>
                         </div>
 
-                        <div className="bg-gradient-to-br from-[#1C1F26] to-[#0F1115] border border-white/10 p-10 rounded-3xl shadow-2xl relative overflow-hidden max-w-2xl mx-auto">
-                            <div className="absolute -top-24 -right-24 text-green-500/5 rotate-12 pointer-events-none">
-                                <IndianRupee className="w-96 h-96" />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto mb-8">
+                            {/* Monthly Revenue Card */}
+                            <div className="bg-gradient-to-br from-indigo-500/10 to-indigo-600/5 border border-indigo-500/20 p-8 rounded-3xl shadow-2xl relative overflow-hidden">
+                                <div className="absolute -top-12 -right-12 text-indigo-500/5 pointer-events-none">
+                                    <TrendingUp className="w-48 h-48" />
+                                </div>
+                                <div className="relative z-10 text-center">
+                                    <div className="inline-flex items-center justify-center w-14 h-14 bg-indigo-500/10 text-indigo-400 rounded-2xl mb-4 border border-indigo-500/20">
+                                        <TrendingUp className="w-7 h-7" />
+                                    </div>
+                                    <h2 className="text-slate-400 font-semibold mb-1 text-sm uppercase tracking-widest">Monthly Revenue</h2>
+                                    <div className="text-4xl font-black text-white flex items-center justify-center tracking-tight mt-2">
+                                        <IndianRupee className="w-8 h-8 text-indigo-400 mr-1" />{monthlyRevenue.toLocaleString('en-IN')}
+                                    </div>
+                                    <p className="text-xs font-medium text-slate-500 mt-3">Updated when jobs are completed</p>
+                                </div>
                             </div>
 
-                            <div className="relative z-10 text-center">
-                                <div className="inline-flex items-center justify-center w-20 h-20 bg-green-500/10 text-green-400 rounded-2xl mb-6 border border-green-500/20 shadow-inner">
-                                    <Banknote className="w-10 h-10" />
+                            {/* Lifetime Earnings Card */}
+                            <div className="bg-gradient-to-br from-[#1C1F26] to-[#0F1115] border border-white/10 p-8 rounded-3xl shadow-2xl relative overflow-hidden">
+                                <div className="absolute -top-12 -right-12 text-green-500/5 rotate-12 pointer-events-none">
+                                    <IndianRupee className="w-48 h-48" />
                                 </div>
-                                <h2 className="text-slate-400 font-semibold mb-2">Lifetime Earnings</h2>
-                                <div className="text-6xl font-black text-white flex items-center justify-center tracking-tight">
-                                    <IndianRupee className="w-12 h-12 text-green-400 mr-2" />{totalIncome.toLocaleString('en-IN')}
+                                <div className="relative z-10 text-center">
+                                    <div className="inline-flex items-center justify-center w-14 h-14 bg-green-500/10 text-green-400 rounded-2xl mb-4 border border-green-500/20">
+                                        <Banknote className="w-7 h-7" />
+                                    </div>
+                                    <h2 className="text-slate-400 font-semibold mb-1 text-sm uppercase tracking-widest">Lifetime Earnings</h2>
+                                    <div className="text-4xl font-black text-white flex items-center justify-center tracking-tight mt-2">
+                                        <IndianRupee className="w-8 h-8 text-green-400 mr-1" />{totalIncome.toLocaleString('en-IN')}
+                                    </div>
+                                    <p className="text-xs font-medium text-slate-500 mt-3">
+                                        From {completedApplications.length} completed job{completedApplications.length === 1 ? '' : 's'}
+                                    </p>
                                 </div>
-                                <p className="text-sm font-medium text-slate-500 mt-6">
-                                    From {completedApplications.length} completed job{completedApplications.length === 1 ? '' : 's'}
-                                </p>
                             </div>
                         </div>
                     </>

@@ -204,15 +204,45 @@ export async function markJobDone(formData: FormData) {
 
     const job_id = formData.get('job_id') as string
 
+    // 1. Fetch the job to get assigned_worker_id and budget BEFORE updating
+    const { data: jobData, error: fetchError } = await supabase
+        .from('jobs')
+        .select('assigned_worker_id, budget')
+        .eq('id', job_id)
+        .eq('customer_id', user.id)
+        .single()
+
+    if (fetchError || !jobData) throw new Error('Job not found or access denied')
+
+    // 2. Mark the job as completed
     const { error } = await supabase
         .from('jobs')
         .update({ status: 'completed' })
         .eq('id', job_id)
-        .eq('customer_id', user.id) // Only the customer who posted the job can mark it done
+        .eq('customer_id', user.id)
 
     if (error) throw new Error('Failed to mark job as done: ' + error.message)
 
+    // 3. Update the worker's monthly_revenue if there's a budget and an assigned worker
+    if (jobData.assigned_worker_id && jobData.budget) {
+        const { data: workerProfile } = await supabase
+            .from('profiles')
+            .select('monthly_revenue')
+            .eq('id', jobData.assigned_worker_id)
+            .single()
+
+        const currentRevenue = workerProfile?.monthly_revenue || 0
+        await supabase
+            .from('profiles')
+            .update({ monthly_revenue: currentRevenue + jobData.budget })
+            .eq('id', jobData.assigned_worker_id)
+    }
+
+    // 4. Revalidate both dashboards so:
+    //    - Worker's history tab auto-updates
+    //    - Worker sees the completed job immediately
     revalidatePath('/dashboard/customer')
+    revalidatePath('/dashboard/worker')
 }
 
 export async function rateWorker(formData: FormData) {

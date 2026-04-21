@@ -51,10 +51,45 @@ export async function register(formData: FormData) {
     const certificates_file = formData.get('certificates') as File | null
     const profile_picture = formData.get('profile_picture') as File | null
 
+    if (!role) {
+        return redirect('/register?error=Please select a role')
+    }
+
+    // Step 1: Sign up the user first (no session yet, so no file uploads here)
+    const { error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+            data: {
+                role,
+                full_name,
+                phone,
+                age,
+                location,
+                profession,
+                experience_years,
+                aadhar_number,
+                blood_group,
+            }
+        }
+    })
+
+    if (signUpError) {
+        return redirect(`/register?error=${signUpError.message}`)
+    }
+
+    // Step 2: Sign in to get an authenticated session for Storage uploads
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+
+    if (signInError) {
+        // Account created but login failed — redirect to login page
+        return redirect(`/login?error=Account created! Please log in.`)
+    }
+
+    // Step 3: Upload files now that we have an authenticated session
     let profile_picture_url = null
     let certificates_url = null
 
-    // Helper function for uploading to Supabase Storage
     const uploadFile = async (file: File, prefix: string) => {
         const fileExt = file.name.split('.').pop()
         const fileName = `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
@@ -81,35 +116,18 @@ export async function register(formData: FormData) {
         }
     } catch (uploadError: unknown) {
         const message = uploadError instanceof Error ? uploadError.message : 'Unknown error'
-        return redirect(`/register?error=Error uploading files: ${message}`)
+        // Non-fatal: account is created, just redirect without file URLs
+        console.error('File upload error (non-fatal):', message)
     }
 
-    if (!role) {
-        return redirect('/register?error=Please select a role')
-    }
-
-    const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
+    // Step 4: Update user metadata with file URLs if any were uploaded
+    if (profile_picture_url || certificates_url) {
+        await supabase.auth.updateUser({
             data: {
-                role,
-                full_name,
-                phone,
-                age,
-                location,
-                profession,
-                experience_years,
-                aadhar_number,
-                blood_group,
                 profile_picture_url,
-                certificates: certificates_url
+                certificates: certificates_url,
             }
-        }
-    })
-
-    if (error) {
-        return redirect(`/register?error=${error.message}`)
+        })
     }
 
     revalidatePath('/', 'layout')
