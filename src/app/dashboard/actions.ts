@@ -217,7 +217,7 @@ export async function markJobDone(formData: FormData) {
     // 2. Mark the job as completed
     const { error } = await supabase
         .from('jobs')
-        .update({ status: 'completed' })
+        .update({ status: 'completed', updated_at: new Date().toISOString() })
         .eq('id', job_id)
         .eq('customer_id', user.id)
 

@@ -81,7 +81,7 @@ export default async function WorkerDashboard({
     let totalIncome = 0
 
     if (currentTab === 'history' || currentTab === 'income') {
-        const { data: fetchHistory } = await supabase
+        const { data: fetchHistory, error: historyError } = await supabase
             .from('job_applications')
             .select(`
                 id,
@@ -94,12 +94,16 @@ export default async function WorkerDashboard({
                     budget,
                     status,
                     updated_at,
-                    profiles ( full_name )
+                    profiles!customer_id ( full_name )
                 )
             `)
             .eq('worker_id', user.id)
             .eq('status', 'accepted')
             .eq('jobs.status', 'completed')
+
+        if (historyError) {
+            console.error('Error fetching job history:', historyError)
+        }
 
         completedApplications = fetchHistory || []
 
