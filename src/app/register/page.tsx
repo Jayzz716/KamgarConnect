@@ -199,10 +199,11 @@ export default function RegisterPage({
                                             <input
                                                 name="certificates"
                                                 type="file"
-                                                accept="image/*,.pdf"
+                                                accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,image/*,application/pdf"
                                                 className="w-full text-sm text-slate-500 file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
                                             />
                                         </div>
+                                        <p className="text-xs text-slate-400 mt-1 ml-12">JPG, PNG, PDF supported (max 10MB)</p>
                                     </div>
                                 </div>
 

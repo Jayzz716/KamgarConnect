@@ -1,9 +1,53 @@
-import { Briefcase, MapPin, Plus, Zap, AlertCircle, CheckCircle2, UserCircle, Star, Pencil, Phone, User, PartyPopper, Activity, Award } from 'lucide-react'
+import { Briefcase, MapPin, Plus, Zap, AlertCircle, CheckCircle2, UserCircle, Star, Pencil, Phone, User, PartyPopper, Activity, Award, FileText, ExternalLink, XCircle } from 'lucide-react'
 import { createClient } from '@/utils/supabase/server'
-import { postJob, acceptWorker, updateProfile, markJobDone } from '@/app/dashboard/actions'
+import { postJob, customerOfferWorker, customerRejectWorker, updateProfile, markJobDone, cancelJob } from '@/app/dashboard/actions'
 
 import StarRating from './StarRating'
 import Link from 'next/link'
+
+function isImageUrl(url: string): boolean {
+    const lower = url.toLowerCase()
+    return /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/.test(lower)
+}
+
+function CertificatePreview({ url }: { url: string }) {
+    if (isImageUrl(url)) {
+        return (
+            <div className="mt-2">
+                <div className="flex items-center gap-1.5 text-slate-400 mb-1.5">
+                    <Award className="w-3 h-3 shrink-0" />
+                    <span className="text-xs font-semibold">Certificate</span>
+                </div>
+                <a href={url} target="_blank" rel="noopener noreferrer" className="block group">
+                    <img
+                        src={url}
+                        alt="Worker Certificate"
+                        className="w-full max-w-[200px] h-auto rounded-lg border border-white/10 shadow-md group-hover:border-blue-500/50 transition-all group-hover:shadow-blue-500/10"
+                    />
+                    <span className="text-[10px] text-blue-400 mt-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <ExternalLink className="w-2.5 h-2.5" /> Click to view full size
+                    </span>
+                </a>
+            </div>
+        )
+    }
+    // PDF or other document
+    return (
+        <div className="flex items-center gap-2 text-slate-400 mt-1">
+            <Award className="w-3 h-3 shrink-0" />
+            <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-blue-400 hover:text-blue-300 bg-blue-500/10 border border-blue-500/20 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all hover:bg-blue-500/20"
+            >
+                <FileText className="w-3 h-3" />
+                View Certificate
+                <ExternalLink className="w-2.5 h-2.5" />
+            </a>
+        </div>
+    )
+}
 
 
 function parseDescription(desc: string) {
@@ -62,8 +106,8 @@ export default async function CustomerDashboard({
         .single()
 
     // Separate jobs by history versus active
-    const activeJobs = jobs?.filter(job => job.status !== 'completed') || []
-    const completedJobs = jobs?.filter(job => job.status === 'completed') || []
+    const activeJobs = jobs?.filter(job => job.status !== 'completed' && job.status !== 'cancelled') || []
+    const completedJobs = jobs?.filter(job => job.status === 'completed' || job.status === 'cancelled') || []
 
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-1000 max-w-7xl mx-auto flex flex-col md:flex-row gap-8 text-slate-200">
@@ -226,17 +270,29 @@ export default async function CustomerDashboard({
                                         // applications typed properly since supabase join shapes the data
                                         const applications: { id: string, status: string, worker_id: string, profiles: { full_name: string, phone: string, profession: string, location: string, experience_years: number, rating_sum: number, rating_count: number, blood_group: string | null, profile_picture_url: string | null, certificates: string | null } }[] = job.job_applications || []
                                         const pendingApplicants = applications.filter(a => a.status === 'pending')
+                                        const offeredApplicants = applications.filter(a => a.status === 'offered')
                                         const assignedWorkerApp = applications.find(a => a.status === 'accepted')
 
                                         return (
                                             <div key={job.id} className="bg-[#1C1F26] border border-white/5 p-6 md:p-8 rounded-3xl shadow-xl hover:-translate-y-0.5 transition-transform flex flex-col md:flex-row gap-8 relative overflow-hidden group">
 
-                                                {/* Status Badge */}
-                                                <div className={`absolute top-6 right-6 text-xs font-bold px-3 py-1 rounded-full shadow-inner ${job.status === 'open' ? 'bg-green-500/10 text-green-400 border border-green-500/20' :
-                                                    job.status === 'in_progress' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
-                                                        'bg-slate-800 text-slate-400 border border-slate-700'
-                                                    }`}>
-                                                    {job.status.replace('_', ' ').toUpperCase()}
+                                                {/* Status Badge and Cancel Button */}
+                                                <div className="absolute top-6 right-6 flex flex-col items-end gap-2">
+                                                    <div className={`text-xs font-bold px-3 py-1 rounded-full shadow-inner ${job.status === 'open' ? 'bg-green-500/10 text-green-400 border border-green-500/20' :
+                                                        job.status === 'in_progress' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
+                                                            'bg-slate-800 text-slate-400 border border-slate-700'
+                                                        }`}>
+                                                        {job.status.replace('_', ' ').toUpperCase()}
+                                                    </div>
+                                                    
+                                                    {job.status === 'open' && (
+                                                        <form action={cancelJob}>
+                                                            <input type="hidden" name="job_id" value={job.id} />
+                                                            <button type="submit" className="text-xs text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 px-2 py-1 rounded-md transition-all flex items-center gap-1 shadow-sm">
+                                                                <XCircle className="w-3 h-3" /> Cancel
+                                                            </button>
+                                                        </form>
+                                                    )}
                                                 </div>
 
                                                 {/* Job Details Section */}
@@ -340,10 +396,7 @@ export default async function CustomerDashboard({
                                                                         </div>
                                                                     )}
                                                                     {assignedWorkerApp.profiles.certificates && (
-                                                                        <div className="flex items-start gap-2 text-slate-400">
-                                                                            <Award className="w-3 h-3 shrink-0 mt-0.5" />
-                                                                            <span>Certs: <a href={assignedWorkerApp.profiles.certificates} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline underline-offset-2">View Certificate</a></span>
-                                                                        </div>
+                                                                        <CertificatePreview url={assignedWorkerApp.profiles.certificates} />
                                                                     )}
                                                                     <div className="flex items-center gap-2 text-slate-400">
                                                                         <Star className="w-3 h-3 text-yellow-500 fill-current shrink-0" />
@@ -391,19 +444,38 @@ export default async function CustomerDashboard({
                                                                         </div>
                                                                         <div className="text-xs text-slate-400 space-y-1 bg-[#1C1F26] p-2 rounded-lg border border-white/5">
                                                                             {app.profiles.blood_group && <p><span className="text-slate-500 font-semibold">Blood:</span> <span className="text-slate-300">{app.profiles.blood_group}</span></p>}
-                                                                            {app.profiles.certificates && <p><span className="text-slate-500 font-semibold">Certs:</span> <a href={app.profiles.certificates} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline underline-offset-2">View</a></p>}
+                                                                            {app.profiles.certificates && <CertificatePreview url={app.profiles.certificates} />}
                                                                             {!app.profiles.blood_group && !app.profiles.certificates && <p className="text-slate-500 italic">No extra details provided.</p>}
                                                                         </div>
                                                                     </div>
-                                                                    <form action={acceptWorker}>
-                                                                        <input type="hidden" name="job_id" value={job.id} />
-                                                                        <input type="hidden" name="worker_id" value={app.worker_id} />
-                                                                        <button type="submit" className="w-full mt-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 rounded-lg transition-colors">
-                                                                            Accept {app.profiles.full_name}
-                                                                        </button>
-                                                                    </form>
+                                                                    <div className="flex gap-2 mt-2">
+                                                                        <form action={customerOfferWorker} className="flex-1">
+                                                                            <input type="hidden" name="job_id" value={job.id} />
+                                                                            <input type="hidden" name="worker_id" value={app.worker_id} />
+                                                                            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-1">
+                                                                                <CheckCircle2 className="w-3.5 h-3.5" /> Accept
+                                                                            </button>
+                                                                        </form>
+                                                                        <form action={customerRejectWorker} className="flex-1">
+                                                                            <input type="hidden" name="job_id" value={job.id} />
+                                                                            <input type="hidden" name="worker_id" value={app.worker_id} />
+                                                                            <button type="submit" className="w-full bg-[#1C1F26] border border-white/10 hover:bg-white/5 text-slate-300 hover:text-white text-xs font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-1">
+                                                                                <XCircle className="w-3.5 h-3.5" /> Reject
+                                                                            </button>
+                                                                        </form>
+                                                                    </div>
                                                                 </div>
                                                             ))}
+                                                        </div>
+                                                    ) : offeredApplicants.length > 0 ? (
+                                                        <div className="space-y-3">
+                                                            <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl">
+                                                                <div className="flex items-center gap-2 mb-3">
+                                                                    <CheckCircle2 className="w-4 h-4 text-blue-400" />
+                                                                    <span className="text-sm font-bold text-blue-400">Worker Offered Job</span>
+                                                                </div>
+                                                                <p className="text-xs text-slate-400">Waiting for {offeredApplicants[0].profiles.full_name} to accept or reject.</p>
+                                                            </div>
                                                         </div>
                                                     ) : (
                                                         <div className="bg-[#0F1115] border border-white/5 p-4 rounded-xl text-center">

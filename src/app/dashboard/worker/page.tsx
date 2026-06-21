@@ -1,6 +1,6 @@
-import { Briefcase, MapPin, Star, IndianRupee, CheckCircle2, History, Banknote, User, Pencil, Phone, Bell, TrendingUp } from 'lucide-react'
+import { Briefcase, MapPin, Star, IndianRupee, CheckCircle2, History, Banknote, User, Pencil, Phone, Bell, TrendingUp, XCircle } from 'lucide-react'
 import { createClient } from '@/utils/supabase/server'
-import { applyForJob, updateProfile } from '@/app/dashboard/actions'
+import { applyForJob, workerAcceptJob, workerRejectJob, updateProfile } from '@/app/dashboard/actions'
 import Link from 'next/link'
 
 function parseDescription(desc: string) {
@@ -68,8 +68,12 @@ export default async function WorkerDashboard({
         const acceptedJobs = applications
             .filter(app => app.status === 'accepted' && app.jobs?.status !== 'completed')
             .map(app => app.jobs)
+
+        const rejectedJobIds = new Set(
+            applications.filter(app => app.status === 'rejected' || app.status === 'worker_rejected').map(app => app.job_id)
+        )
             
-        openJobs = [...acceptedJobs, ...openJobs]
+        openJobs = [...acceptedJobs, ...openJobs].filter(job => !rejectedJobIds.has(job.id))
 
         appliedJobIds = new Set(applications.map(app => app.job_id))
         applicationStatusMap = new Map(applications.map(app => [app.job_id, app.status]))
@@ -244,6 +248,14 @@ export default async function WorkerDashboard({
                                                             <Star className="h-3.5 w-3.5 fill-current" />
                                                             {details.is_urgent ? 'URGENT' : 'NEW'}
                                                         </span>
+                                                        {hasApplied && appStatus === 'pending' && (
+                                                            <form action={workerRejectJob}>
+                                                                <input type="hidden" name="job_id" value={job.id} />
+                                                                <button type="submit" className="text-xs text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 px-2 py-1 rounded-md transition-all flex items-center gap-1 shadow-sm mt-1">
+                                                                    <XCircle className="w-3 h-3" /> Cancel
+                                                                </button>
+                                                            </form>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -277,6 +289,29 @@ export default async function WorkerDashboard({
                                                         <div className="w-full text-center py-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-sm font-bold text-indigo-400 flex items-center justify-center gap-2">
                                                             <CheckCircle2 className="w-4 h-4" />
                                                             Job Assigned to You
+                                                        </div>
+                                                    ) : appStatus === 'offered' ? (
+                                                        <div className="w-full flex gap-2">
+                                                            <form action={workerAcceptJob} className="flex-1">
+                                                                <input type="hidden" name="job_id" value={job.id} />
+                                                                <button type="submit" className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-xl transition-colors shadow-lg hover:shadow-green-500/25">
+                                                                    Accept Job
+                                                                </button>
+                                                            </form>
+                                                            <form action={workerRejectJob} className="flex-1">
+                                                                <input type="hidden" name="job_id" value={job.id} />
+                                                                <button type="submit" className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition-colors shadow-lg">
+                                                                    Reject
+                                                                </button>
+                                                            </form>
+                                                        </div>
+                                                    ) : appStatus === 'worker_rejected' ? (
+                                                        <div className="w-full text-center py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm font-bold text-red-400 flex items-center justify-center gap-2">
+                                                            You Rejected this Offer
+                                                        </div>
+                                                    ) : appStatus === 'rejected' ? (
+                                                        <div className="w-full text-center py-3 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-slate-400 flex items-center justify-center gap-2">
+                                                            Application Rejected
                                                         </div>
                                                     ) : (
                                                         <div className="w-full text-center py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-slate-400 flex items-center justify-center gap-2">

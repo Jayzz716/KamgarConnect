@@ -91,12 +91,15 @@ export async function register(formData: FormData) {
     let certificates_url = null
 
     const uploadFile = async (file: File, prefix: string) => {
-        const fileExt = file.name.split('.').pop()
+        const fileExt = file.name.split('.').pop()?.toLowerCase() || 'bin'
         const fileName = `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
 
         const { error } = await supabase.storage
             .from('avatars')
-            .upload(fileName, file)
+            .upload(fileName, file, {
+                contentType: file.type || 'application/octet-stream',
+                upsert: true,
+            })
 
         if (error) throw error
 

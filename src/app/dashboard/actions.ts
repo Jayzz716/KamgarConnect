@@ -68,6 +68,24 @@ export async function postJob(formData: FormData) {
     revalidatePath('/dashboard/customer')
 }
 
+export async function cancelJob(formData: FormData) {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const job_id = formData.get('job_id') as string
+
+    const { error } = await supabase
+        .from('jobs')
+        .update({ status: 'cancelled' })
+        .eq('id', job_id)
+        .eq('customer_id', user.id)
+
+    if (error) throw new Error('Failed to cancel job')
+
+    revalidatePath('/dashboard/customer')
+}
+
 export async function applyForJob(formData: FormData) {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -89,7 +107,7 @@ export async function applyForJob(formData: FormData) {
     revalidatePath('/dashboard/worker')
 }
 
-export async function acceptWorker(formData: FormData) {
+export async function customerOfferWorker(formData: FormData) {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('Not authenticated')
@@ -97,15 +115,49 @@ export async function acceptWorker(formData: FormData) {
     const job_id = formData.get('job_id') as string
     const worker_id = formData.get('worker_id') as string
 
+    // Update the specific application to 'offered'
+    await supabase
+        .from('job_applications')
+        .update({ status: 'offered' })
+        .eq('job_id', job_id)
+        .eq('worker_id', worker_id)
+
+    revalidatePath('/dashboard/customer')
+}
+
+export async function customerRejectWorker(formData: FormData) {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const job_id = formData.get('job_id') as string
+    const worker_id = formData.get('worker_id') as string
+
+    // Update the specific application to 'rejected'
+    await supabase
+        .from('job_applications')
+        .update({ status: 'rejected' })
+        .eq('job_id', job_id)
+        .eq('worker_id', worker_id)
+
+    revalidatePath('/dashboard/customer')
+}
+
+export async function workerAcceptJob(formData: FormData) {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const job_id = formData.get('job_id') as string
+
     // 1. Update the job to assign the worker and set status to in_progress
     const { error: jobError } = await supabase
         .from('jobs')
         .update({
-            assigned_worker_id: worker_id,
+            assigned_worker_id: user.id,
             status: 'in_progress'
         })
         .eq('id', job_id)
-        .eq('customer_id', user.id) // Ensure only the owner can do this
 
     if (jobError) throw new Error('Failed to assign worker')
 
@@ -114,15 +166,34 @@ export async function acceptWorker(formData: FormData) {
         .from('job_applications')
         .update({ status: 'accepted' })
         .eq('job_id', job_id)
-        .eq('worker_id', worker_id)
+        .eq('worker_id', user.id)
 
     // 3. Update all other applications for this job to rejected
     await supabase
         .from('job_applications')
         .update({ status: 'rejected' })
         .eq('job_id', job_id)
-        .neq('worker_id', worker_id)
+        .neq('worker_id', user.id)
 
+    revalidatePath('/dashboard/worker')
+    revalidatePath('/dashboard/customer')
+}
+
+export async function workerRejectJob(formData: FormData) {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const job_id = formData.get('job_id') as string
+
+    // Update the specific application to 'worker_rejected'
+    await supabase
+        .from('job_applications')
+        .update({ status: 'worker_rejected' })
+        .eq('job_id', job_id)
+        .eq('worker_id', user.id)
+
+    revalidatePath('/dashboard/worker')
     revalidatePath('/dashboard/customer')
 }
 
@@ -149,12 +220,15 @@ export async function updateProfile(formData: FormData) {
     // Helper function for uploading to Supabase Storage
     const uploadFile = async (file: File | null, prefix: string) => {
         if (!file || file.size === 0) return null
-        const fileExt = file.name.split('.').pop()
+        const fileExt = file.name.split('.').pop()?.toLowerCase() || 'bin'
         const fileName = `${prefix}-${user.id}-${Date.now()}.${fileExt}`
 
         const { error } = await supabase.storage
             .from('avatars')
-            .upload(fileName, file)
+            .upload(fileName, file, {
+                contentType: file.type || 'application/octet-stream',
+                upsert: true,
+            })
 
         if (error) throw error
 
