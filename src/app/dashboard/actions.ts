@@ -116,11 +116,16 @@ export async function customerOfferWorker(formData: FormData) {
     const worker_id = formData.get('worker_id') as string
 
     // Update the specific application to 'offered'
-    await supabase
+    const { error } = await supabase
         .from('job_applications')
         .update({ status: 'offered' })
         .eq('job_id', job_id)
         .eq('worker_id', worker_id)
+
+    if (error) {
+        console.error('Error in customerOfferWorker:', error)
+        throw new Error('Failed to accept worker: ' + error.message)
+    }
 
     revalidatePath('/dashboard/customer')
 }
@@ -134,11 +139,16 @@ export async function customerRejectWorker(formData: FormData) {
     const worker_id = formData.get('worker_id') as string
 
     // Update the specific application to 'rejected'
-    await supabase
+    const { error } = await supabase
         .from('job_applications')
         .update({ status: 'rejected' })
         .eq('job_id', job_id)
         .eq('worker_id', worker_id)
+
+    if (error) {
+        console.error('Error in customerRejectWorker:', error)
+        throw new Error('Failed to reject worker: ' + error.message)
+    }
 
     revalidatePath('/dashboard/customer')
 }
@@ -150,30 +160,15 @@ export async function workerAcceptJob(formData: FormData) {
 
     const job_id = formData.get('job_id') as string
 
-    // 1. Update the job to assign the worker and set status to in_progress
-    const { error: jobError } = await supabase
-        .from('jobs')
-        .update({
-            assigned_worker_id: user.id,
-            status: 'in_progress'
-        })
-        .eq('id', job_id)
+    const { error } = await supabase.rpc('accept_job_offer', {
+        p_job_id: job_id,
+        p_worker_id: user.id
+    })
 
-    if (jobError) throw new Error('Failed to assign worker')
-
-    // 2. Update the specific application to accepted
-    await supabase
-        .from('job_applications')
-        .update({ status: 'accepted' })
-        .eq('job_id', job_id)
-        .eq('worker_id', user.id)
-
-    // 3. Update all other applications for this job to rejected
-    await supabase
-        .from('job_applications')
-        .update({ status: 'rejected' })
-        .eq('job_id', job_id)
-        .neq('worker_id', user.id)
+    if (error) {
+        console.error('Error in workerAcceptJob:', error)
+        throw new Error('Failed to accept job: ' + error.message)
+    }
 
     revalidatePath('/dashboard/worker')
     revalidatePath('/dashboard/customer')
@@ -186,12 +181,15 @@ export async function workerRejectJob(formData: FormData) {
 
     const job_id = formData.get('job_id') as string
 
-    // Update the specific application to 'worker_rejected'
-    await supabase
-        .from('job_applications')
-        .update({ status: 'worker_rejected' })
-        .eq('job_id', job_id)
-        .eq('worker_id', user.id)
+    const { error } = await supabase.rpc('reject_job_offer', {
+        p_job_id: job_id,
+        p_worker_id: user.id
+    })
+
+    if (error) {
+        console.error('Error in workerRejectJob:', error)
+        throw new Error('Failed to reject job: ' + error.message)
+    }
 
     revalidatePath('/dashboard/worker')
     revalidatePath('/dashboard/customer')

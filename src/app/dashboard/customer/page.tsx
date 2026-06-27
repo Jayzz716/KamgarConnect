@@ -584,7 +584,7 @@ export default async function CustomerDashboard({
                                 <p className="text-slate-400">Update your contact information so workers can reach you.</p>
                             </div>
 
-                            <form action={updateProfile} className="space-y-4 bg-[#1C1F26] border border-white/5 p-6 rounded-3xl shadow-xl">
+                            <form action={updateProfile} encType="multipart/form-data" className="space-y-4 bg-[#1C1F26] border border-white/5 p-6 rounded-3xl shadow-xl">
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-400 mb-1">Full Name</label>
                                     <div className="relative">
